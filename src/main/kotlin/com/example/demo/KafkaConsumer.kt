@@ -5,7 +5,6 @@ import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.stereotype.Service
 import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.beans.factory.annotation.Autowired
-import java.util.logging.Logger
 
 @Service
 class KafkaConsumer(@Autowired private val inventoryRepository: InventoryRepository,
@@ -15,24 +14,17 @@ class KafkaConsumer(@Autowired private val inventoryRepository: InventoryReposit
 
     @KafkaListener(topics = ["orders"], groupId = "group_id")
     fun validateOrder(id: String){
+        logger.info("ID HERE IS AS FOLLOWS: {}", id)
         val inventory = inventoryRepository.findById(id.toLong())
 
         if (inventory.isPresent) {
             val count = inventory.get().count
-
-            val message = if (count > 0) {
-                "Order validated for id: $id with count: $count"
-            } else {
-                "Order rejected for id: $id due to insufficient count"
-            }
-
             val topic = if (count > 0) "order-validated" else "order-rejected"
-            kafkaTemplate.send(topic, message)
-            logger.info(message)
+            kafkaTemplate.send(topic, id)
+            logger.info("Order with $id validated and published to order-validated.")
         } else {
-            val message = "Order rejected for id: $id - inventory not found"
-            kafkaTemplate.send("order-rejected", message)
-            logger.info(message)
+            kafkaTemplate.send("order-rejected", id)
+            logger.info("Invalid order with $id")
         }
     }
 
